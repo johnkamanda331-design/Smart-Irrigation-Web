@@ -1095,7 +1095,6 @@ h1 {
 .schedule-item:hover {
   box-shadow: var(--shadow-medium);
   border-color: var(--primary-light);
-}
   transform: translateY(-2px);
 }
 
