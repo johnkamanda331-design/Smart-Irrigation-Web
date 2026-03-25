@@ -23,12 +23,27 @@ const PASSWORD_HASH = "cGFzc3dvcmQxMjM="; // Base64 of "password123"
 function checkPassword() {
   const storedHash = localStorage.getItem("access_hash");
   if (storedHash === PASSWORD_HASH) return true;
-  const input = prompt("Enter password:");
-  if (input && btoa(input) === PASSWORD_HASH) {
-    localStorage.setItem("access_hash", PASSWORD_HASH);
-    return true;
+
+  let attempts = 0;
+  const maxAttempts = 3;
+
+  while (attempts < maxAttempts) {
+    const input = prompt(`Enter password (${maxAttempts - attempts} attempts remaining):`);
+    if (!input) {
+      attempts++;
+      alert("Password required. Access denied.");
+      continue;
+    }
+    if (btoa(input) === PASSWORD_HASH) {
+      localStorage.setItem("access_hash", PASSWORD_HASH);
+      return true;
+    } else {
+      attempts++;
+      alert(`Incorrect password. ${maxAttempts - attempts} attempts remaining.`);
+    }
   }
-  alert("Incorrect password.");
+
+  alert("Too many failed attempts. Access denied.");
   return false;
 }
 
