@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 
@@ -85,6 +86,10 @@
 
   <div id="status" class="status-message"></div>
 
+  <div id="offlineIndicator" style="display: none; background: var(--warning-color); color: white; padding: 0.5rem; text-align: center; font-weight: bold;">
+    <i class="fas fa-wifi-slash"></i> Offline Mode - Using Cached Data
+  </div>
+
   <div class="config-section">
     <div class="config-card">
       <h3><i class="fas fa-network-wired"></i> ESP32 Configuration</h3>
@@ -124,6 +129,9 @@
         <input type="number" id="refreshInterval" min="5" max="3600" value="30" style="width: 80px;">
         <button type="button" onclick="updateAutoRefreshInterval()" class="save-btn" style="padding:0.55rem 1rem;">Apply</button>
         <button type="button" onclick="toggleAutoRefresh()" id="autoRefreshBtn" class="refresh-btn" style="padding:0.55rem 1rem;">Auto Refresh</button>
+      </div>
+      <div class="ip-input-group" style="gap: 0.5rem; align-items: center;">
+        <button type="button" onclick="toggleNotifications()" class="refresh-btn" style="padding:0.55rem 1rem;">Enable Notifications</button>
       </div>
       <button onclick="fetchData()" class="refresh-btn" id="refreshBtn">
         <i class="fas fa-sync-alt"></i> <span>Refresh Data</span>
@@ -371,9 +379,10 @@
           <option value="water_flow">Water Flow (L/min)</option>
           <option value="battery_voltage">Battery Voltage (V)</option>
           <option value="solar_voltage">Solar Voltage (V)</option>
+          <option value="combined">Combined</option>
         </select>
-        <button onclick="downloadHistory()" class="refresh-btn" title="Download history as JSON">
-          <i class="fas fa-file-download"></i> Export Data
+        <button onclick="downloadHistory()" class="refresh-btn" title="Download history as CSV">
+          <i class="fas fa-file-download"></i> Export CSV
         </button>
       </div>
       <canvas id="trendChart" width="100" height="45"></canvas>

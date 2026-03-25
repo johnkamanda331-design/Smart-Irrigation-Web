@@ -18,6 +18,20 @@ const weatherDataKey = "weather_data";
 const trendHistoryKey = "trend_history";
 const maxHistoryPoints = 144; // around 24h at 10-minute refresh
 
+// Simple password protection
+const PASSWORD_HASH = "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"; // SHA-256 of "password" (change this)
+function checkPassword() {
+  const storedHash = localStorage.getItem("access_hash");
+  if (storedHash === PASSWORD_HASH) return true;
+  const input = prompt("Enter password:");
+  if (input && btoa(input) === PASSWORD_HASH) { // Simple base64 for demo; use proper hash in production
+    localStorage.setItem("access_hash", PASSWORD_HASH);
+    return true;
+  }
+  alert("Incorrect password.");
+  return false;
+}
+
 document.getElementById("ip").value = ip;
 document.getElementById("latitude").value = latitude;
 document.getElementById("longitude").value = longitude;
@@ -125,15 +139,27 @@ function setTrendMetric(metric) {
     battery_voltage: { label: 'Battery Voltage (V)', color: 'rgba(156, 39, 176, 0.9)', fill: 'rgba(156, 39, 176, 0.2)', unit: 'V' },
     solar_voltage: { label: 'Solar Voltage (V)', color: 'rgba(255, 87, 34, 0.9)', fill: 'rgba(255, 87, 34, 0.2)', unit: 'V' },
   };
-  const selected = metricMap[metric] || metricMap.soil;
 
-  trendChart.data.datasets[0].label = selected.label;
-  trendChart.data.datasets[0].borderColor = selected.color;
-  trendChart.data.datasets[0].backgroundColor = selected.fill;
-  trendChart.options.scales.y.title.text = selected.unit;
+  if (metric === 'combined') {
+    trendChart.data.datasets = [
+      { label: 'Soil Moisture (%)', data: historicalData.map(item => item.soil), borderColor: 'rgba(46, 125, 50, 0.9)', backgroundColor: 'rgba(76, 175, 80, 0.25)', tension: 0.25, fill: false },
+      { label: 'Battery Voltage (V)', data: historicalData.map(item => item.battery_voltage), borderColor: 'rgba(156, 39, 176, 0.9)', backgroundColor: 'rgba(156, 39, 176, 0.2)', tension: 0.25, fill: false },
+    ];
+    trendChart.options.scales.y.title.text = 'Values';
+  } else {
+    const selected = metricMap[metric] || metricMap.soil;
+    trendChart.data.datasets = [{
+      label: selected.label,
+      data: historicalData.map(item => item[metric]),
+      borderColor: selected.color,
+      backgroundColor: selected.fill,
+      tension: 0.25,
+      fill: true,
+    }];
+    trendChart.options.scales.y.title.text = selected.unit;
+  }
 
   trendChart.data.labels = historicalData.map(item => new Date(item.ts));
-  trendChart.data.datasets[0].data = historicalData.map(item => item[metric] !== undefined ? item[metric] : null);
   trendChart.update();
 }
 
@@ -156,11 +182,18 @@ function addTrendEntry(data) {
 }
 
 function downloadHistory() {
-  const blob = new Blob([JSON.stringify(historicalData, null, 2)], { type: 'application/json' });
+  const csv = Papa.unparse(historicalData.map(entry => ({
+    timestamp: entry.timestamp,
+    soil_moisture: entry.soil_moisture || entry.soil,
+    water_flow: entry.water_flow || entry.flow,
+    battery_voltage: entry.battery_voltage || entry.battery,
+    solar_voltage: entry.solar_voltage || entry.solar
+  })));
+  const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'irrigation_history.json';
+  link.download = 'irrigation_history.csv';
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -218,11 +251,25 @@ function showStatus(message, type = "info") {
 function notifyUser(message, type = 'info') {
   if (!('Notification' in window)) return;
 
+  if (Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+
   if (Notification.permission === 'granted') {
     new Notification(`Irrigation ${type}`, {
       body: message,
       icon: type === 'error' ? 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/svgs/solid/exclamation-circle.svg' : 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/svgs/solid/check-circle.svg'
     });
+  }
+}
+
+function toggleNotifications() {
+  if (Notification.permission === 'default') {
+    Notification.requestPermission().then(permission => {
+      showStatus(`Notifications ${permission === 'granted' ? 'enabled' : 'denied'}.`, 'info');
+    });
+  } else {
+    showStatus('Notifications already configured.', 'info');
   }
 }
 
@@ -242,7 +289,11 @@ function setUpAutoRefresh() {
 
 function startAutoRefresh() {
   stopAutoRefresh();
-  autoRefreshIntervalId = setInterval(fetchData, autoRefreshIntervalMs);
+  autoRefreshIntervalId = setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      fetchData();
+    }
+  }, autoRefreshIntervalMs);
   autoRefreshEnabled = true;
   localStorage.setItem('auto_refresh_enabled', 'true');
 }
@@ -296,6 +347,10 @@ function updateOnlineStatus() {
   if (statusEl) {
     statusEl.textContent = status;
     statusEl.style.color = color;
+  }
+  const offlineIndicator = document.getElementById('offlineIndicator');
+  if (offlineIndicator) {
+    offlineIndicator.style.display = navigator.onLine ? 'none' : 'block';
   }
   if (!navigator.onLine) {
     showStatus('You are offline. Showing cached data if available.', 'warning');
@@ -1252,6 +1307,8 @@ document.addEventListener('mousedown', () => {
 
 // Initialize app on page load
 document.addEventListener('DOMContentLoaded', async function() {
+  if (!checkPassword()) return; // Block access if password fails
+
   deselectAndBlur();
   loadSchedules();
   loadTrendHistory();
