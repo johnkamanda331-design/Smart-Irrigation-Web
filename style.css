@@ -144,7 +144,6 @@ header {
   position: sticky;
   top: 0;
   z-index: 100;
-  backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -187,7 +186,6 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(10px);
 }
 
 .theme-btn:hover {
@@ -205,12 +203,11 @@ h1 {
 }
 
 .status-card {
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(10px);
+  background: var(--bg-secondary);
   padding: 1.25rem;
   border-radius: var(--border-radius-lg);
   box-shadow: var(--shadow-medium);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -233,7 +230,7 @@ h1 {
 .status-card:hover {
   transform: translateY(-6px);
   box-shadow: var(--shadow-xl);
-  border-color: rgba(255, 255, 255, 0.6);
+  border-color: rgba(0, 0, 0, 0.15);
 }
 
 .status-chip {
@@ -345,7 +342,6 @@ h1 {
   transform: translateY(-20px);
   box-shadow: var(--shadow-heavy);
   border-left: 4px solid;
-  backdrop-filter: blur(10px);
 }
 
 .status-message.show {
@@ -391,12 +387,11 @@ h1 {
 }
 
 .control-card {
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(10px);
+  background: var(--bg-secondary);
   padding: 1.75rem;
   border-radius: var(--border-radius-lg);
   box-shadow: var(--shadow-medium);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   transition: var(--transition);
   position: relative;
   overflow: hidden;
@@ -415,8 +410,7 @@ h1 {
 .control-card:hover {
   transform: translateY(-8px);
   box-shadow: var(--shadow-xl);
-  border-color: rgba(255, 255, 255, 0.6);
-  background: rgba(255, 255, 255, 0.65);
+  border-color: rgba(0, 0, 0, 0.15);
 }
 
 .control-card h3 {
@@ -511,12 +505,11 @@ h1 {
 }
 
 .config-card {
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(10px);
+  background: var(--bg-secondary);
   padding: 1.75rem;
   border-radius: var(--border-radius-lg);
   box-shadow: var(--shadow-medium);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   transition: var(--transition);
 }
 
@@ -611,12 +604,11 @@ h1 {
 
 /* Enhanced Metric Cards */
 .metric-card {
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(10px);
+  background: var(--bg-secondary);
   padding: 1.75rem;
   border-radius: var(--border-radius-lg);
   box-shadow: var(--shadow-medium);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   transition: var(--transition);
   position: relative;
   overflow: hidden;
@@ -636,8 +628,7 @@ h1 {
 .metric-card:hover {
   transform: translateY(-8px);
   box-shadow: var(--shadow-xl);
-  border-color: rgba(255, 255, 255, 0.6);
-  background: rgba(255, 255, 255, 0.65);
+  border-color: rgba(0, 0, 0, 0.15);
 }
 
 .card-header {
@@ -874,12 +865,11 @@ h1 {
 }
 
 .schedule-card {
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(10px);
+  background: var(--bg-secondary);
   padding: 1.75rem;
   border-radius: var(--border-radius-lg);
   box-shadow: var(--shadow-medium);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   transition: var(--transition);
 }
 
@@ -1095,18 +1085,17 @@ h1 {
   align-items: center;
   justify-content: space-between;
   padding: 1.25rem;
-  background: rgba(255, 255, 255, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: var(--bg-primary);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: var(--border-radius-lg);
   margin-bottom: 0.75rem;
   transition: var(--transition);
-  backdrop-filter: blur(10px);
 }
 
 .schedule-item:hover {
   box-shadow: var(--shadow-medium);
   border-color: var(--primary-light);
-  background: rgba(255, 255, 255, 0.55);
+}
   transform: translateY(-2px);
 }
 
@@ -1296,12 +1285,11 @@ h1 {
 }
 
 .chart-card {
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(10px);
+  background: var(--bg-secondary);
   padding: 1.75rem;
   border-radius: var(--border-radius-lg);
   box-shadow: var(--shadow-medium);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   transition: var(--transition);
 }
 
