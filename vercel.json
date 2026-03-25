@@ -1,14 +1,10 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "index.html",
-      "use": "@vercel/static"
-    }
-  ],
+  "public": ".",
+  "builds": [],
   "routes": [
     {
-      "src": "/(?!(?:style\\.css|script\\.js|service-worker\\.js|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|woff|woff2|ttf|eot)$)).*",
+      "src": "/(?!.*\\.(?:js|css|json|png|jpg|jpeg|gif|svg|webp|ico|woff|woff2|ttf|eot|map)$).*",
       "dest": "/index.html"
     }
   ]
