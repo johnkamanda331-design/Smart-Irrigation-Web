@@ -20,31 +20,58 @@ const maxHistoryPoints = 144; // around 24h at 10-minute refresh
 
 // Simple password protection
 const PASSWORD_HASH = "cGFzc3dvcmQxMjM="; // Base64 of "password123"
-function checkPassword() {
-  const storedHash = localStorage.getItem("access_hash");
-  if (storedHash === PASSWORD_HASH) return true;
+let passwordAttempts = 0;
+const maxPasswordAttempts = 3;
 
-  let attempts = 0;
-  const maxAttempts = 3;
+function isAuthenticated() {
+  return localStorage.getItem("access_hash") === PASSWORD_HASH;
+}
 
-  while (attempts < maxAttempts) {
-    const input = prompt(`Enter password (${maxAttempts - attempts} attempts remaining):`);
-    if (!input) {
-      attempts++;
-      alert("Password required. Access denied.");
-      continue;
-    }
-    if (btoa(input) === PASSWORD_HASH) {
-      localStorage.setItem("access_hash", PASSWORD_HASH);
-      return true;
-    } else {
-      attempts++;
-      alert(`Incorrect password. ${maxAttempts - attempts} attempts remaining.`);
-    }
+function showLoginModal() {
+  const modal = document.getElementById('loginModal');
+  if (modal) {
+    modal.style.display = 'flex';
+  }
+}
+
+function hideLoginModal() {
+  const modal = document.getElementById('loginModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+function updateLoginError(message) {
+  const errorEl = document.getElementById('loginError');
+  if (errorEl) {
+    errorEl.textContent = message;
+  }
+}
+
+function attemptLogin() {
+  const input = document.getElementById('loginPassword').value;
+  if (!input) {
+    updateLoginError('Password is required.');
+    return;
   }
 
-  alert("Too many failed attempts. Access denied.");
-  return false;
+  if (btoa(input) === PASSWORD_HASH) {
+    localStorage.setItem('access_hash', PASSWORD_HASH);
+    passwordAttempts = 0;
+    updateLoginError('');
+    hideLoginModal();
+    initializeApp();
+  } else {
+    passwordAttempts++;
+    const remaining = maxPasswordAttempts - passwordAttempts;
+    if (remaining > 0) {
+      updateLoginError(`Incorrect password. ${remaining} attempt(s) remaining.`);
+    } else {
+      updateLoginError('Too many failed attempts. Refresh to try again.');
+      document.getElementById('loginSubmit').disabled = true;
+      document.getElementById('loginPassword').disabled = true;
+    }
+  }
 }
 
 document.getElementById("ip").value = ip;
@@ -1320,10 +1347,7 @@ document.addEventListener('mousedown', () => {
   clearAnySelection();
 });
 
-// Initialize app on page load
-document.addEventListener('DOMContentLoaded', async function() {
-  if (!checkPassword()) return; // Block access if password fails
-
+function initializeApp() {
   deselectAndBlur();
   loadSchedules();
   loadTrendHistory();
@@ -1350,6 +1374,26 @@ document.addEventListener('DOMContentLoaded', async function() {
   if (ip) {
     setUpAutoRefresh();
     if (autoRefreshEnabled) fetchData();
+  }
+}
+
+// Initialize app on page load
+document.addEventListener('DOMContentLoaded', function() {
+  const loginSubmit = document.getElementById('loginSubmit');
+  const loginPassword = document.getElementById('loginPassword');
+
+  loginSubmit.addEventListener('click', attemptLogin);
+  loginPassword.addEventListener('keyup', function(event) {
+    if (event.key === 'Enter') {
+      attemptLogin();
+    }
+  });
+
+  if (isAuthenticated()) {
+    hideLoginModal();
+    initializeApp();
+  } else {
+    showLoginModal();
   }
 });
 
