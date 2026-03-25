@@ -19,12 +19,12 @@ const trendHistoryKey = "trend_history";
 const maxHistoryPoints = 144; // around 24h at 10-minute refresh
 
 // Simple password protection
-const PASSWORD_HASH = "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"; // SHA-256 of "password" (change this)
+const PASSWORD_HASH = "cGFzc3dvcmQxMjM="; // Base64 of "password123"
 function checkPassword() {
   const storedHash = localStorage.getItem("access_hash");
   if (storedHash === PASSWORD_HASH) return true;
   const input = prompt("Enter password:");
-  if (input && btoa(input) === PASSWORD_HASH) { // Simple base64 for demo; use proper hash in production
+  if (input && btoa(input) === PASSWORD_HASH) {
     localStorage.setItem("access_hash", PASSWORD_HASH);
     return true;
   }
