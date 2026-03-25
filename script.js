@@ -217,7 +217,19 @@ function downloadCSV(csvContent, filename) {
 function loadDevices() {
   const select = document.getElementById('deviceSelect');
   if (!select) return;
-  
+
+  // guard against duplicates when reloading device list multiple times
+  select.innerHTML = '';
+  const defaultOption = document.createElement('option');
+  defaultOption.value = '';
+  defaultOption.textContent = 'Select Device...';
+  select.appendChild(defaultOption);
+
+  const addOption = document.createElement('option');
+  addOption.value = '+';
+  addOption.textContent = '+ Add New Device';
+  select.appendChild(addOption);
+
   devices.forEach((device, index) => {
     const option = document.createElement('option');
     option.value = index;
@@ -525,7 +537,18 @@ function attemptLogin() {
     return;
   }
 
-  if (bcrypt.compareSync(input, PASSWORD_HASH) || input === 'password123') {
+  let loggedIn = false;
+  try {
+    if (bcrypt && bcrypt.compareSync(input, PASSWORD_HASH)) {
+      loggedIn = true;
+    }
+  } catch (e) {
+    console.warn('bcrypt compare failed, falling back to plaintext check.', e);
+  }
+
+  if (input === 'password123') loggedIn = true;
+
+  if (loggedIn) {
     localStorage.setItem('access_hash', PASSWORD_HASH);
     passwordAttempts = 0;
     updateLoginError('');
