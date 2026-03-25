@@ -33,6 +33,20 @@ let cachedResponse = null;
 let cacheTimestamp = 0;
 const CACHE_DURATION = 5000; // Cache for 5 seconds
 
+// Multi-device support
+let devices = JSON.parse(localStorage.getItem('saved_devices') || '[]');
+let currentDevice = localStorage.getItem('current_device') || '';
+
+// Performance metrics
+let performanceMetrics = {
+  totalFetches: 0,
+  successfulFetches: 0,
+  failedFetches: 0,
+  totalResponseTime: 0,
+  startTime: Date.now(),
+  errors: []
+};
+
 // Simple password protection
 const PASSWORD_HASH = "$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi"; // bcrypt hash of "password123"
 let passwordAttempts = 0;
@@ -196,6 +210,264 @@ function downloadCSV(csvContent, filename) {
   a.download = filename;
   a.click();
   window.URL.revokeObjectURL(url);
+}
+
+// Multi-device functions
+function loadDevices() {
+  const select = document.getElementById('deviceSelect');
+  if (!select) return;
+  
+  devices.forEach((device, index) => {
+    const option = document.createElement('option');
+    option.value = index;
+    option.textContent = `${device.name} (${device.ip})`;
+    if (currentDevice === device.ip) option.selected = true;
+    select.appendChild(option);
+  });
+}
+
+function switchDevice(value) {
+  if (value === '') {
+    return;
+  } else if (value === '+') {
+    showDeviceSettings();
+    return;
+  }
+  
+  const device = devices[parseInt(value)];
+  if (device) {
+    currentDevice = device.ip;
+    ip = device.ip;
+    localStorage.setItem('current_device', ip);
+    localStorage.setItem('esp32_ip', ip);
+    showStatus(`Switched to ${device.name}`, 'success');
+    cachedResponse = null;
+    fetchData();
+  }
+}
+
+function showDeviceSettings() {
+  const modal = document.getElementById('deviceSettingsModal');
+  if (!modal) return;
+  
+  const list = document.getElementById('deviceList');
+  list.innerHTML = '';
+  
+  devices.forEach((device, index) => {
+    const div = document.createElement('div');
+    div.className = 'device-item';
+    div.innerHTML = `
+      <div class="device-info">
+        <span class="device-name">${device.name}</span>
+        <span class="device-ip">${device.ip}</span>
+      </div>
+      <div class="device-actions">
+        <button class="device-btn device-btn-select" onclick="switchAndClose(${index})">Select</button>
+        <button class="device-btn device-btn-delete" onclick="deleteDevice(${index})">Delete</button>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+  
+  modal.style.display = 'flex';
+}
+
+function switchAndClose(index) {
+  const device = devices[index];
+  currentDevice = device.ip;
+  ip = device.ip;
+  localStorage.setItem('current_device', ip);
+  localStorage.setItem('esp32_ip', ip);
+  closeModal('deviceSettingsModal');
+  showStatus(`Switched to ${device.name}`, 'success');
+  cachedResponse = null;
+  fetchData();
+}
+
+function addDevice() {
+  const nameInput = document.getElementById('newDeviceName');
+  const ipInput = document.getElementById('newDeviceIP');
+  
+  if (!nameInput.value.trim() || !ipInput.value.trim()) {
+    showStatus('Please enter device name and IP address', 'error');
+    return;
+  }
+  
+  const newDevice = { name: nameInput.value.trim(), ip: ipInput.value.trim() };
+  devices.push(newDevice);
+  localStorage.setItem('saved_devices', JSON.stringify(devices));
+  
+  nameInput.value = '';
+  ipInput.value = '';
+  
+  showStatus(`Device "${newDevice.name}" added!`, 'success');
+  loadDevices();
+  showDeviceSettings();
+}
+
+function deleteDevice(index) {
+  const device = devices[index];
+  if (confirm(`Delete device "${device.name}"?`)) {
+    devices.splice(index, 1);
+    localStorage.setItem('saved_devices', JSON.stringify(devices));
+    showStatus(`Device deleted`, 'success');
+    loadDevices();
+    showDeviceSettings();
+  }
+}
+
+// Settings presets
+const PRESETS = {
+  conservative: { thresholdMin: 30, thresholdMax: 70, frequency: 'every3days', duration: 45 },
+  moderate: { thresholdMin: 40, thresholdMax: 75, frequency: 'daily', duration: 30 },
+  aggressive: { thresholdMin: 50, thresholdMax: 80, frequency: 'twicedaily', duration: 15 },
+  summer: { thresholdMin: 35, thresholdMax: 70, frequency: 'twicedaily', duration: 35 },
+  winter: { thresholdMin: 25, thresholdMax: 65, frequency: 'every2days', duration: 25 }
+};
+
+function showSettingsPresets() {
+  const modal = document.getElementById('presetsModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function applyPreset(presetName) {
+  const preset = PRESETS[presetName];
+  if (!preset) return;
+  
+  // Create schedules based on preset
+  schedules = [];
+  const now = new Date();
+  
+  if (presetName === 'conservative') {
+    // Every 3 days at 6 AM
+    for (let i = 0; i < 7; i += 3) {
+      schedules.push({
+        id: Date.now() + i,
+        time: '06:00',
+        duration: preset.duration,
+        days: [i % 7],
+        enabled: true
+      });
+    }
+  } else if (presetName === 'moderate') {
+    // Daily at 6 AM
+    schedules.push({
+      id: Date.now(),
+      time: '06:00',
+      duration: preset.duration,
+      days: [0,1,2,3,4,5,6],
+      enabled: true
+    });
+  } else if (presetName === 'aggressive') {
+    // Twice daily: 6 AM and 6 PM
+    schedules.push({
+      id: Date.now() + 1,
+      time: '06:00',
+      duration: preset.duration,
+      days: [0,1,2,3,4,5,6],
+      enabled: true
+    });
+    schedules.push({
+      id: Date.now() + 2,
+      time: '18:00',
+      duration: preset.duration,
+      days: [0,1,2,3,4,5,6],
+      enabled: true
+    });
+  } else if (presetName === 'summer') {
+    // Twice daily during summer
+    schedules.push({
+      id: Date.now() + 3,
+      time: '05:00',
+      duration: preset.duration,
+      days: [0,1,2,3,4,5,6],
+      enabled: true
+    });
+    schedules.push({
+      id: Date.now() + 4,
+      time: '19:00',
+      duration: preset.duration,
+      days: [0,1,2,3,4,5,6],
+      enabled: true
+    });
+  } else if (presetName === 'winter') {
+    // Every 2 days at 8 AM
+    for (let i = 0; i < 7; i += 2) {
+      schedules.push({
+        id: Date.now() + i,
+        time: '08:00',
+        duration: preset.duration,
+        days: [i % 7],
+        enabled: true
+      });
+    }
+  }
+  
+  saveSchedulesToStorage();
+  displaySchedules();
+  closeModal('presetsModal');
+  showStatus(`Preset "${presetName}" applied!`, 'success');
+}
+
+function filterSchedules(filterType) {
+  const items = document.querySelectorAll('.schedule-item:not(.template)');
+  items.forEach(item => {
+    let show = true;
+    if (filterType === 'enabled') {
+      show = item.querySelector('.schedule-enabled').checked;
+    } else if (filterType === 'disabled') {
+      show = !item.querySelector('.schedule-enabled').checked;
+    }
+    item.style.display = show ? '' : 'none';
+  });
+}
+
+function loadSampleSchedule() {
+  const timeInput = document.getElementById('scheduleTime');
+  const durationInput = document.getElementById('scheduleDuration');
+  timeInput.value = '06:00';
+  durationInput.value = '30';
+  showStatus('Sample schedule loaded: 6:00 AM for 30 minutes', 'info');
+}
+
+// System health functions
+function showSystemHealth() {
+  const modal = document.getElementById('systemHealthModal');
+  if (!modal) return;
+  
+  const successRate = performanceMetrics.totalFetches > 0 
+    ? (performanceMetrics.successfulFetches / performanceMetrics.totalFetches * 100)   : 0;
+  const avgResponseTime = performanceMetrics.successfulFetches > 0
+    ? (performanceMetrics.totalResponseTime / performanceMetrics.successfulFetches).toFixed(0)
+    : 0;
+  const uptime = ((Date.now() - performanceMetrics.startTime) / 1000 / 60).toFixed(1);
+  const lastError = performanceMetrics.errors.length > 0
+    ? performanceMetrics.errors[performanceMetrics.errors.length - 1]
+    : 'None';
+  
+  document.getElementById('healthFetchRate').style.width = successRate + '%';
+  document.getElementById('healthFetchText').textContent = successRate.toFixed(1) + '%';
+  document.getElementById('healthResponseTime').textContent = avgResponseTime + ' ms';
+  document.getElementById('healthUptime').textContent = uptime + ' min';
+  document.getElementById('healthLastError').textContent = lastError;
+  
+  modal.style.display = 'flex';
+}
+
+function downloadHealthReport() {
+  let csv = 'System Health Report\n';
+  csv += `Generated: ${new Date().toLocaleString()}\n\n`;
+  csv += `Success Rate: ${(performanceMetrics.successfulFetches / performanceMetrics.totalFetches * 100).toFixed(1)}%\n`;
+  csv += `Total Fetches: ${performanceMetrics.totalFetches}\n`;
+  csv += `Successful: ${performanceMetrics.successfulFetches}\n`;
+  csv += `Failed: ${performanceMetrics.failedFetches}\n`;
+  csv += `Avg Response Time: ${(performanceMetrics.totalResponseTime / performanceMetrics.successfulFetches).toFixed(0)} ms\n`;
+  csv += `Uptime: ${((Date.now() - performanceMetrics.startTime) / 1000 / 60).toFixed(1)} minutes\n\n`;
+  csv += 'Recent Errors:\n';
+  performanceMetrics.errors.slice(-10).forEach(error => {
+    csv += error + '\n';
+  });
+  downloadCSV(csv, 'health-report.csv');
 }
 
 let idleTimeoutMs = 5 * 60 * 1000; // 5 minutes
@@ -854,6 +1126,8 @@ async function fetchData() {
 
   try {
     showStatus("Fetching data from ESP32...", "info");
+    performanceMetrics.totalFetches++;
+    const fetchStartTime = Date.now();
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
@@ -863,12 +1137,18 @@ async function fetchData() {
     });
 
     clearTimeout(timeoutId);
+    const fetchEndTime = Date.now();
+    const responseTime = fetchEndTime - fetchStartTime;
+    performanceMetrics.totalResponseTime += responseTime;
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
     const data = await response.json();
+
+    performanceMetrics.successfulFetches++;
+    logEvent('Fetch Success', `Response time: ${responseTime}ms`);
 
     // Cache the response
     cachedResponse = data;
@@ -918,6 +1198,13 @@ async function fetchData() {
     console.error("Fetch error:", error);
     updateConnectionStatus(false);
     failedFetchCount++;
+    performanceMetrics.failedFetches++;
+    
+    const errorMsg = error.name === 'AbortError' ? 'Request timeout' : error.message;
+    performanceMetrics.errors.push(`${new Date().toLocaleTimeString()}: ${errorMsg}`);
+    if (performanceMetrics.errors.length > 50) performanceMetrics.errors.shift();
+    logEvent('Fetch Failed', errorMsg);
+    
     if (failedFetchCount >= 3) {
       const previous = autoRefreshIntervalMs;
       autoRefreshIntervalMs = Math.min(120000, autoRefreshIntervalMs * 2);
@@ -1666,6 +1953,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (isAuthenticated()) {
     hideLoginModal();
     initializeApp();
+    loadDevices();
   } else {
     showLoginModal();
   }

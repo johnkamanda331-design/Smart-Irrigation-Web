@@ -845,6 +845,232 @@ h1 {
   text-align: center;
 }
 
+/* Device Selector */
+.device-selector {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px 8px 0 0;
+  margin-bottom: 1rem;
+}
+
+.device-selector label {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.device-selector select {
+  padding: 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  cursor: pointer;
+  min-width: 200px;
+}
+
+.icon-btn {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.icon-btn:hover {
+  background: var(--primary-light);
+  transform: scale(1.05);
+}
+
+/* Device Form */
+.device-form {
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.device-form label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.device-form input {
+  padding: 0.75rem;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.device-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+}
+
+.device-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.device-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.device-ip {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.device-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.device-btn {
+  padding: 0.4rem 0.6rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: var(--transition-fast);
+}
+
+.device-btn-select {
+  background: var(--success-color);
+  color: white;
+}
+
+.device-btn-select:hover {
+  background: #059669;
+}
+
+.device-btn-delete {
+  background: var(--danger-color);
+  color: white;
+}
+
+.device-btn-delete:hover {
+  background: #dc2626;
+}
+
+/* Schedule Controls Bar */
+.schedule-controls-bar {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.schedule-controls-bar input,
+.schedule-controls-bar select {
+  padding: 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.schedule-controls-bar input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.schedule-controls-bar select {
+  min-width: 120px;
+}
+
+/* Presets */
+.presets-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.preset-card {
+  background: var(--bg-tertiary);
+  padding: 1rem;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: var(--transition);
+  border: 2px solid transparent;
+}
+
+.preset-card:hover {
+  background: var(--bg-secondary);
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-medium);
+}
+
+.preset-card h4 {
+  margin: 0 0 0.5rem 0;
+  color: var(--primary-color);
+  font-size: 1rem;
+}
+
+.preset-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+/* Health Metrics */
+.health-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.health-metric {
+  background: var(--bg-tertiary);
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.health-metric h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.health-metric p {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.metric-bar {
+  width: 100%;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.metric-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--success-color), var(--primary-color));
+  width: 0%;
+  transition: width 0.5s ease;
+}
+
 /* Configuration Section */
 .config-section {
   margin-bottom: 2rem;

@@ -42,6 +42,16 @@
 </div>
 
 <main>
+  <!-- Multi-Device Selector -->
+  <div class="device-selector">
+    <label for="deviceSelect">Device:</label>
+    <select id="deviceSelect" onchange="switchDevice(this.value)">
+      <option value="">Select Device...</option>
+      <option value="+">+ Add New Device</option>
+    </select>
+    <button onclick="showDeviceSettings()" class="icon-btn" title="Manage devices"><i class="fas fa-cog"></i></button>
+  </div>
+
   <!-- System Status Overview -->
   <div class="status-overview">
     <div class="status-card connection-status">
@@ -69,6 +79,7 @@
       <div class="status-info">
         <h4>Last Update</h4>
         <span id="lastUpdate">Never</span>
+        <small id="lastUpdateTime" style="font-size:0.75rem;color:var(--text-muted);"></small>
       </div>
     </div>
     <div class="status-card weather-status">
@@ -298,6 +309,17 @@
         </div>
       </div>
 
+      <div class="schedule-controls-bar">
+        <input type="text" id="scheduleSearch" placeholder="Search schedules..." />
+        <select id="scheduleFilter" onchange="filterSchedules(this.value)">
+          <option value="all">All</option>
+          <option value="enabled">Enabled</option>
+          <option value="disabled">Disabled</option>
+        </select>
+        <button onclick="loadSampleSchedule()" class="refresh-btn" title="Load example schedule"><i class="fas fa-plus"></i> Sample</button>
+        <button onclick="showSettingsPresets()" class="refresh-btn" title="Load saved presets"><i class="fas fa-bookmark"></i> Presets</button>
+      </div>
+
       <div class="schedule-form" id="scheduleForm">
         <h4><i class="fas fa-plus-circle"></i> Create New Schedule</h4>
         <div class="form-row">
@@ -412,6 +434,7 @@
   <p>&copy; 2026 Smart Irrigation System | Connected to ESP32</p>
   <div class="footer-controls">
     <button onclick="showWaterStats()" class="footer-btn" title="View water usage statistics"><i class="fas fa-tint"></i> Water Stats</button>
+    <button onclick="showSystemHealth()" class="footer-btn" title="View system health report"><i class="fas fa-heartbeat"></i> Health</button>
     <button onclick="showEventLog()" class="footer-btn" title="View system event log"><i class="fas fa-list"></i> Event Log</button>
     <button onclick="showHelp()" class="footer-btn" title="Show keyboard shortcuts"><i class="fas fa-question-circle"></i> Help</button>
   </div>
@@ -477,6 +500,90 @@
         <tr><td><kbd>L</kbd></td><td>Lock session</td></tr>
         <tr><td><kbd>?</kbd></td><td>Show this help</td></tr>
       </table>
+    </div>
+  </div>
+</div>
+
+<div id="deviceSettingsModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2><i class="fas fa-link"></i> Manage Devices</h2>
+      <button onclick="closeModal('deviceSettingsModal')" class="modal-close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="deviceList" style="max-height: 300px; overflow-y: auto; margin-bottom: 1rem;"></div>
+      <div class="device-form">
+        <label>Add New Device:</label>
+        <input type="text" id="newDeviceName" placeholder="Device name (e.g., Garden ESP)" />
+        <input type="text" id="newDeviceIP" placeholder="IP Address (e.g., 192.168.1.100)" />
+        <button onclick="addDevice()" class="refresh-btn"><i class="fas fa-plus"></i> Add</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="presetsModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2><i class="fas fa-bookmark"></i> Settings Presets</h2>
+      <button onclick="closeModal('presetsModal')" class="modal-close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="presets-list">
+        <div class="preset-card" onclick="applyPreset('conservative')">
+          <h4>Conservative</h4>
+          <p>Low frequency, long duration. For drought-sensitive plants.</p>
+        </div>
+        <div class="preset-card" onclick="applyPreset('moderate')">
+          <h4>Moderate</h4>
+          <p>Balanced frequency & duration. For most plants.</p>
+        </div>
+        <div class="preset-card" onclick="applyPreset('aggressive')">
+          <h4>Aggressive</h4>
+          <p>High frequency, short duration. For water-loving plants.</p>
+        </div>
+        <div class="preset-card" onclick="applyPreset('summer')">
+          <h4>Summer</h4>
+          <p>Increased frequency & duration for hot months.</p>
+        </div>
+        <div class="preset-card" onclick="applyPreset('winter')">
+          <h4>Winter</h4>
+          <p>Reduced frequency for cold months.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="systemHealthModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2><i class="fas fa-heartbeat"></i> System Health Report</h2>
+      <button onclick="closeModal('systemHealthModal')" class="modal-close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="health-metrics">
+        <div class="health-metric">
+          <h4>Fetch Success Rate</h4>
+          <div class="metric-bar">
+            <div class="metric-fill" id="healthFetchRate"></div>
+          </div>
+          <p id="healthFetchText">--</p>
+        </div>
+        <div class="health-metric">
+          <h4>Avg Response Time</h4>
+          <p id="healthResponseTime">--</p>
+        </div>
+        <div class="health-metric">
+          <h4>Uptime</h4>
+          <p id="healthUptime">--</p>
+        </div>
+        <div class="health-metric">
+          <h4>Last Error</h4>
+          <p id="healthLastError">None</p>
+        </div>
+      </div>
+      <button onclick="downloadHealthReport()" class="refresh-btn" style="margin-top: 1rem;"><i class="fas fa-download"></i> Download Report</button>
     </div>
   </div>
 </div>
