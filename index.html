@@ -99,6 +99,12 @@
           <input type="checkbox" id="forceIpMode" onchange="toggleForceIPMode()"> Force IP mode
         </label>
       </div>
+      <div class="ip-input-group" style="gap: 0.5rem; align-items: center;">
+        <label for="refreshInterval" style="margin:0; font-size:0.9rem;">Auto-refresh interval (s)</label>
+        <input type="number" id="refreshInterval" min="5" max="3600" value="30" style="width: 80px;">
+        <button type="button" onclick="updateAutoRefreshInterval()" class="save-btn" style="padding:0.55rem 1rem;">Apply</button>
+        <button type="button" onclick="toggleAutoRefresh()" id="autoRefreshBtn" class="refresh-btn" style="padding:0.55rem 1rem;">Auto Refresh</button>
+      </div>
       <button onclick="fetchData()" class="refresh-btn" id="refreshBtn">
         <i class="fas fa-sync-alt"></i> <span>Refresh Data</span>
       </button>

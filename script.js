@@ -1,11 +1,14 @@
 let ip = localStorage.getItem("esp32_ip") || "";
-let autoRefreshInterval;
+let autoRefreshIntervalId = null;
 let currentTheme = localStorage.getItem("theme") || "light";
 let latitude = localStorage.getItem("weather_latitude") || "";
 let longitude = localStorage.getItem("weather_longitude") || "";
 let rainThreshold = parseInt(localStorage.getItem("rain_threshold")) || 50;
 let forceIPMode = localStorage.getItem("force_ip_mode") === "true";
 let weatherFetchTimestamp = localStorage.getItem("weather_last_update") ? new Date(localStorage.getItem("weather_last_update")) : null;
+let autoRefreshEnabled = localStorage.getItem("auto_refresh_enabled") !== "false";
+let autoRefreshIntervalMs = parseInt(localStorage.getItem("auto_refresh_interval_ms")) || 30000;
+let failedFetchCount = 0;
 let trendMetric = "soil";
 let trendChart = null;
 let historicalData = [];
@@ -220,6 +223,69 @@ function notifyUser(message, type = 'info') {
       icon: type === 'error' ? 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/svgs/solid/exclamation-circle.svg' : 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/svgs/solid/check-circle.svg'
     });
   }
+}
+
+function setUpAutoRefresh() {
+  const intervalInput = document.getElementById('refreshInterval');
+  const autoRefreshBtn = document.getElementById('autoRefreshBtn');
+
+  if (intervalInput) intervalInput.value = autoRefreshIntervalMs / 1000;
+  if (autoRefreshBtn) autoRefreshBtn.textContent = autoRefreshEnabled ? 'Auto Refresh: ON' : 'Auto Refresh: OFF';
+
+  if (autoRefreshEnabled) {
+    startAutoRefresh();
+  } else {
+    stopAutoRefresh();
+  }
+}
+
+function startAutoRefresh() {
+  stopAutoRefresh();
+  autoRefreshIntervalId = setInterval(fetchData, autoRefreshIntervalMs);
+  autoRefreshEnabled = true;
+  localStorage.setItem('auto_refresh_enabled', 'true');
+}
+
+function stopAutoRefresh() {
+  if (autoRefreshIntervalId) {
+    clearInterval(autoRefreshIntervalId);
+    autoRefreshIntervalId = null;
+  }
+  autoRefreshEnabled = false;
+  localStorage.setItem('auto_refresh_enabled', 'false');
+}
+
+function toggleAutoRefresh() {
+  autoRefreshEnabled = !autoRefreshEnabled;
+  if (autoRefreshEnabled) {
+    startAutoRefresh();
+    showStatus('Auto-refresh enabled.', 'success');
+  } else {
+    stopAutoRefresh();
+    showStatus('Auto-refresh disabled.', 'warning');
+  }
+  const autoRefreshBtn = document.getElementById('autoRefreshBtn');
+  if (autoRefreshBtn) autoRefreshBtn.textContent = autoRefreshEnabled ? 'Auto Refresh: ON' : 'Auto Refresh: OFF';
+}
+
+function updateAutoRefreshInterval() {
+  const intervalInput = document.getElementById('refreshInterval');
+  const value = parseInt(intervalInput.value, 10);
+
+  if (isNaN(value) || value < 5 || value > 3600) {
+    showStatus('Auto-refresh interval must be between 5 and 3600 seconds.', 'error');
+    intervalInput.value = autoRefreshIntervalMs / 1000;
+    return;
+  }
+
+  autoRefreshIntervalMs = value * 1000;
+  localStorage.setItem('auto_refresh_interval_ms', autoRefreshIntervalMs.toString());
+
+  if (autoRefreshEnabled) {
+    startAutoRefresh();
+  }
+
+  showStatus(`Auto-refresh interval set to ${value}s.`, 'success');
 }
 
 function updateOnlineStatus() {
@@ -470,6 +536,12 @@ async function fetchData() {
     await saveLastSensorData(data);
     addTrendEntry(data);
 
+    // Reset failure state when success
+    failedFetchCount = 0;
+    if (autoRefreshEnabled && autoRefreshIntervalMs !== parseInt(localStorage.getItem('auto_refresh_interval_ms') || '30000')) {
+      setUpAutoRefresh();
+    }
+
     // Optionally refresh weather if older than 30 minutes
     const needsWeatherRefresh = !weatherFetchTimestamp || ((new Date() - weatherFetchTimestamp) > (30 * 60 * 1000));
     if (needsWeatherRefresh && latitude && longitude) {
@@ -481,6 +553,16 @@ async function fetchData() {
   } catch (error) {
     console.error("Fetch error:", error);
     updateConnectionStatus(false);
+    failedFetchCount++;
+    if (failedFetchCount >= 3) {
+      const previous = autoRefreshIntervalMs;
+      autoRefreshIntervalMs = Math.min(120000, autoRefreshIntervalMs * 2);
+      localStorage.setItem('auto_refresh_interval_ms', autoRefreshIntervalMs.toString());
+      showStatus(`Fetch failed repeatedly. Backing off to ${autoRefreshIntervalMs / 1000}s interval.`, 'warning');
+      if (autoRefreshEnabled) {
+        startAutoRefresh();
+      }
+    }
 
     if (error.name === 'AbortError') {
       showStatus("Request timed out. Please check your connection.", "error");
@@ -1106,8 +1188,8 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
 
   if (ip) {
-    autoRefreshInterval = setInterval(() => fetchData(), 30000);
-    fetchData();
+    setUpAutoRefresh();
+    if (autoRefreshEnabled) fetchData();
   }
 });
 
