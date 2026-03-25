@@ -12,6 +12,7 @@ let failedFetchCount = 0;
 let trendMetric = "soil";
 let trendChart = null;
 let historicalData = [];
+const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const lastSensorDataKey = "last_sensor_data";
 const weatherDataKey = "weather_data";
 const trendHistoryKey = "trend_history";
@@ -371,6 +372,8 @@ function updateWeatherUI(weatherInfo) {
   } else {
     weatherStatus.textContent = 'No weather data';
   }
+
+  updateNextIrrigationAndAdvice();
 }
 
 function checkRainDelay(weatherInfo) {
@@ -535,6 +538,7 @@ async function fetchData() {
 
     await saveLastSensorData(data);
     addTrendEntry(data);
+    updateNextIrrigationAndAdvice();
 
     // Reset failure state when success
     failedFetchCount = 0;
@@ -899,6 +903,90 @@ function updateScheduleStats() {
   totalElement.textContent = `${total} total`;
   activeElement.textContent = `${active} active`;
   summaryElement.textContent = `${active} active schedule${active !== 1 ? 's' : ''}`;
+
+  updateNextIrrigationAndAdvice();
+}
+
+function getNextScheduledIrrigation() {
+  if (!schedules || schedules.length === 0) return null;
+
+  const now = new Date();
+  const dayIdx = now.getDay();
+  let best = null;
+
+  for (let offset = 0; offset < 7; offset++) {
+    const targetDay = (dayIdx + offset) % 7;
+    schedules.filter(schedule => schedule.enabled && schedule.days.includes(targetDay)).forEach(schedule => {
+      const [h, m] = schedule.time.split(':').map(Number);
+      const candidate = new Date(now);
+      candidate.setDate(now.getDate() + offset);
+      candidate.setHours(h, m, 0, 0);
+
+      if (candidate <= now) return;
+
+      if (!best || candidate < best.candidate) {
+        best = { schedule, candidate };
+      }
+    });
+    if (best) break; // first eligible in time order
+  }
+
+  return best;
+}
+
+function formatDateTime(dt) {
+  if (!dt || !(dt instanceof Date)) return 'TBD';
+  const opts = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+  return dt.toLocaleString(undefined, opts);
+}
+
+function generateSmartAdvice() {
+  const soilValue = Number(document.getElementById('soil').textContent.replace('%', ''));
+  const battery = Number(document.getElementById('battery-percentage').textContent.replace('%', ''));
+  const rainThresholdValue = Number(document.getElementById('rainThreshold').value || 50);
+  const weatherCache = JSON.parse(localStorage.getItem(weatherDataKey) || '{}');
+  const rainProb = weatherCache.daily?.precipitation_probability_max?.[0] ?? null;
+  const nextIrrigation = getNextScheduledIrrigation();
+
+  if (!schedules || schedules.length === 0) {
+    return 'No irrigation schedule has been configured. Add a schedule to enable predictions.';
+  }
+
+  if (rainProb !== null && !Number.isNaN(rainProb) && rainProb >= rainThresholdValue) {
+    return `High rain chance (${rainProb}%). Delay or skip next irrigation.`;
+  }
+
+  if (!Number.isNaN(soilValue) && soilValue < 35) {
+    return `Soil moisture is low (${soilValue}%). Irrigation is recommended; next run ${nextIrrigation ? formatDateTime(nextIrrigation.candidate) : 'TBD'}.`;
+  }
+
+  if (!Number.isNaN(soilValue) && soilValue > 75) {
+    return `Soil moisture is high (${soilValue}%). Skip irrigation unless schedule requires it.`;
+  }
+
+  if (!Number.isNaN(battery) && battery < 25) {
+    return `Battery low (${battery}%). Ensure solar charging and avoid long irrigation cycles.`;
+  }
+
+  if (nextIrrigation) {
+    return `Next irrigation targets ${dayNames[nextIrrigation.candidate.getDay()]} ${formatDateTime(nextIrrigation.candidate)}.`;
+  }
+
+  return 'System conditions are good. Monitor soil and rain forecast for optimal decisions.';
+}
+
+function updateNextIrrigationAndAdvice() {
+  const nextElement = document.getElementById('nextIrrigation');
+  const adviceElement = document.getElementById('smartAdvice');
+
+  const next = getNextScheduledIrrigation();
+  if (next) {
+    nextElement.textContent = `${dayNames[next.candidate.getDay()]} ${formatDateTime(next.candidate)} (${next.schedule.duration} min)`;
+  } else {
+    nextElement.textContent = 'No enabled schedule found';
+  }
+
+  adviceElement.textContent = generateSmartAdvice();
 }
 
 function addScheduleToUI(schedule) {
