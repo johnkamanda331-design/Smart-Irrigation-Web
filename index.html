@@ -6,6 +6,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
+  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
 </head>
 
@@ -16,20 +18,26 @@
     <i class="fas fa-seedling header-icon"></i>
     <h1>Smart Irrigation Dashboard</h1>
     <div class="header-controls">
-      <button id="themeToggle" onclick="toggleTheme()" class="theme-btn">
+      <button id="themeToggle" onclick="toggleTheme()" class="theme-btn" aria-label="Toggle theme">
         <i class="fas fa-moon"></i>
       </button>
     </div>
   </div>
 </header>
 
+<div id="alertBanner" class="alert-banner" style="display:none;">
+  <i class="fas fa-exclamation-triangle"></i>
+  <span id="alertMessage"></span>
+  <button onclick="dismissAlert()" class="alert-close" aria-label="Close alert">&times;</button>
+</div>
+
 <div id="loginModal" class="login-modal">
   <div class="login-card">
     <h2>Secure Login</h2>
     <p>Please enter password to access dashboard.</p>
-    <input type="password" id="loginPassword" placeholder="Password" autocomplete="off" />
-    <button id="loginSubmit" class="refresh-btn">Submit</button>
-    <p id="loginError" class="login-error"></p>
+    <input type="password" id="loginPassword" placeholder="Password" autocomplete="off" aria-label="Password" />
+    <button id="loginSubmit" class="refresh-btn" aria-label="Submit password">Submit</button>
+    <p id="loginError" class="login-error" aria-live="polite"></p>
   </div>
 </div>
 
@@ -232,10 +240,10 @@
       <h3><i class="fas fa-play-circle"></i> Quick Controls</h3>
       <div class="quick-actions">
         <div class="control-buttons">
-          <button onclick="sendCommand('ON')" class="control-btn start-btn" id="startBtn" title="Start irrigation immediately">
+          <button onclick="sendCommand('ON')" class="control-btn start-btn" id="startBtn" title="Start irrigation immediately" aria-label="Start irrigation">
             <i class="fas fa-play"></i> Start
           </button>
-          <button onclick="sendCommand('OFF')" class="control-btn stop-btn" id="stopBtn" title="Stop irrigation immediately">
+          <button onclick="sendCommand('OFF')" class="control-btn stop-btn" id="stopBtn" title="Stop irrigation immediately" aria-label="Stop irrigation">
             <i class="fas fa-stop"></i> Stop
           </button>
         </div>
@@ -402,7 +410,76 @@
 
 <footer>
   <p>&copy; 2026 Smart Irrigation System | Connected to ESP32</p>
+  <div class="footer-controls">
+    <button onclick="showWaterStats()" class="footer-btn" title="View water usage statistics"><i class="fas fa-tint"></i> Water Stats</button>
+    <button onclick="showEventLog()" class="footer-btn" title="View system event log"><i class="fas fa-list"></i> Event Log</button>
+    <button onclick="showHelp()" class="footer-btn" title="Show keyboard shortcuts"><i class="fas fa-question-circle"></i> Help</button>
+  </div>
 </footer>
+
+<div id="waterStatsModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2><i class="fas fa-tint"></i> Water Usage Statistics</h2>
+      <button onclick="closeModal('waterStatsModal')" class="modal-close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <h4>Today</h4>
+          <p id="waterToday">0 L</p>
+        </div>
+        <div class="stat-card">
+          <h4>This Week</h4>
+          <p id="waterWeek">0 L</p>
+        </div>
+        <div class="stat-card">
+          <h4>This Month</h4>
+          <p id="waterMonth">0 L</p>
+        </div>
+        <div class="stat-card">
+          <h4>Avg Daily</h4>
+          <p id="waterAvgDaily">0 L</p>
+        </div>
+      </div>
+      <button onclick="downloadWaterReport()" class="refresh-btn"><i class="fas fa-download"></i> Download Report</button>
+    </div>
+  </div>
+</div>
+
+<div id="eventLogModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2><i class="fas fa-list"></i> Event Log</h2>
+      <button onclick="closeModal('eventLogModal')" class="modal-close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="text" id="eventSearchBox" placeholder="Filter events..." style="width: 100%; padding: 0.5rem; margin-bottom: 1rem;">
+      <div id="eventLogContainer" style="max-height: 400px; overflow-y: auto;">
+        <!-- Events will be populated here -->
+      </div>
+      <button onclick="downloadEventLog()" class="refresh-btn" style="margin-top: 1rem;"><i class="fas fa-download"></i> Download Log</button>
+    </div>
+  </div>
+</div>
+
+<div id="helpModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2><i class="fas fa-question-circle"></i> Keyboard Shortcuts</h2>
+      <button onclick="closeModal('helpModal')" class="modal-close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <table class="shortcuts-table">
+        <tr><td><kbd>R</kbd></td><td>Refresh data</td></tr>
+        <tr><td><kbd>S</kbd></td><td>Start irrigation</td></tr>
+        <tr><td><kbd>T</kbd></td><td>Stop irrigation</td></tr>
+        <tr><td><kbd>L</kbd></td><td>Lock session</td></tr>
+        <tr><td><kbd>?</kbd></td><td>Show this help</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
 
 <script src="script.js"></script>
 

@@ -18,8 +18,23 @@ const weatherDataKey = "weather_data";
 const trendHistoryKey = "trend_history";
 const maxHistoryPoints = 144; // around 24h at 10-minute refresh
 
+// Alert thresholds
+const ALERT_THRESHOLDS = { soil: 20, battery: 15, solar: 5 };
+
+// Event logging
+let eventLog = JSON.parse(localStorage.getItem('event_log') || '[]');
+let lastData = null;
+let irrigationStartTime = null;
+
+// Performance optimization
+let lastFetchTime = 0;
+const MIN_FETCH_INTERVAL = 2000; // Minimum 2 seconds between fetches
+let cachedResponse = null;
+let cacheTimestamp = 0;
+const CACHE_DURATION = 5000; // Cache for 5 seconds
+
 // Simple password protection
-const PASSWORD_HASH = "cGFzc3dvcmQxMjM="; // Base64 of "password123"
+const PASSWORD_HASH = "$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi"; // bcrypt hash of "password123"
 let passwordAttempts = 0;
 const maxPasswordAttempts = 3;
 
@@ -46,6 +61,141 @@ function updateLoginError(message) {
   if (errorEl) {
     errorEl.textContent = message;
   }
+}
+
+// Alert functions
+function showAlert(message) {
+  const banner = document.getElementById('alertBanner');
+  const messageEl = document.getElementById('alertMessage');
+  if (banner && messageEl) {
+    messageEl.textContent = message;
+    banner.style.display = 'flex';
+  }
+}
+
+function dismissAlert() {
+  const banner = document.getElementById('alertBanner');
+  if (banner) {
+    banner.style.display = 'none';
+  }
+}
+
+function checkAlerts(data) {
+  let alerts = [];
+  if (data.soil_moisture < ALERT_THRESHOLDS.soil) alerts.push(`Soil moisture critically low: ${data.soil_moisture}%`);
+  if (data.battery_voltage < ALERT_THRESHOLDS.battery) alerts.push(`Battery voltage critically low: ${data.battery_voltage}V`);
+  if (data.solar_voltage < ALERT_THRESHOLDS.solar) alerts.push(`Solar voltage critically low: ${data.solar_voltage}V`);
+  if (alerts.length > 0) {
+    showAlert(alerts.join(' | '));
+  } else {
+    dismissAlert();
+  }
+}
+
+function logEvent(action, details = '') {
+  eventLog.push({ timestamp: new Date().toISOString(), action, details });
+  if (eventLog.length > 100) eventLog.shift();
+  localStorage.setItem('event_log', JSON.stringify(eventLog));
+}
+
+// Modal functions
+function closeModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) modal.style.display = 'none';
+}
+
+function showWaterStats() {
+  const modal = document.getElementById('waterStatsModal');
+  if (!modal) return;
+  
+  // Calculate water stats from event log
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const oneMonthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+  
+  let todayL = 0, weekL = 0, monthL = 0, totalL = 0, eventCount = 0;
+  
+  eventLog.forEach(log => {
+    if (log.action === 'Irrigation completed') {
+      const match = log.details.match(/Liters used: ([\d.]+)/);
+      if (match) {
+        const liters = parseFloat(match[1]);
+        totalL += liters;
+        const logDate = new Date(log.timestamp);
+        if (logDate >= today) todayL += liters;
+        if (logDate >= oneWeekAgo) weekL += liters;
+        if (logDate >= oneMonthAgo) monthL += liters;
+        eventCount++;
+      }
+    }
+  });
+  
+  document.getElementById('waterToday').textContent = todayL.toFixed(2) + ' L';
+  document.getElementById('waterWeek').textContent = weekL.toFixed(2) + ' L';
+  document.getElementById('waterMonth').textContent = monthL.toFixed(2) + ' L';
+  document.getElementById('waterAvgDaily').textContent = eventCount > 0 ? (totalL / Math.max(eventCount, 1)).toFixed(2) + ' L' : '0 L';
+  
+  modal.style.display = 'flex';
+}
+
+function showEventLog() {
+  const modal = document.getElementById('eventLogModal');
+  if (!modal) return;
+  
+  const container = document.getElementById('eventLogContainer');
+  container.innerHTML = '';
+  
+  [...eventLog].reverse().forEach(log => {
+    const div = document.createElement('div');
+    div.className = 'event-item';
+    const time = new Date(log.timestamp).toLocaleString();
+    div.innerHTML = `
+      <span class="event-time">${time}</span>
+      <span class="event-action">${log.action}</span>
+      <span class="event-details">${log.details}</span>
+    `;
+    container.appendChild(div);
+  });
+  
+  modal.style.display = 'flex';
+}
+
+function showHelp() {
+  const modal = document.getElementById('helpModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function downloadWaterReport() {
+  let csv = 'Water Usage Report\n';
+  csv += `Generated: ${new Date().toLocaleString()}\n\n`;
+  csv += 'Event, Date/Time, Details\n';
+  eventLog.forEach(log => {
+    if (log.action === 'Irrigation completed') {
+      csv += `${log.action}, ${log.timestamp}, ${log.details}\n`;
+    }
+  });
+  downloadCSV(csv, 'water-report.csv');
+}
+
+function downloadEventLog() {
+  let csv = 'System Event Log\n';
+  csv += `Generated: ${new Date().toLocaleString()}\n\n`;
+  csv += 'Timestamp, Action, Details\n';
+  eventLog.forEach(log => {
+    csv += `${log.timestamp}, ${log.action}, ${log.details}\n`;
+  });
+  downloadCSV(csv, 'event-log.csv');
+}
+
+function downloadCSV(csvContent, filename) {
+  const blob = new Blob([csvContent], { type: 'text/csv' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  window.URL.revokeObjectURL(url);
 }
 
 let idleTimeoutMs = 5 * 60 * 1000; // 5 minutes
@@ -102,7 +252,7 @@ function attemptLogin() {
     return;
   }
 
-  if (btoa(input) === PASSWORD_HASH) {
+  if (bcrypt.compareSync(input, PASSWORD_HASH)) {
     localStorage.setItem('access_hash', PASSWORD_HASH);
     passwordAttempts = 0;
     updateLoginError('');
@@ -499,12 +649,14 @@ async function fetchWeather() {
   refreshText.textContent = 'Loading...';
 
   try {
-    const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&daily=precipitation_probability_max&timezone=auto`);
+    // Fetch current + hourly weather
+    const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&hourly=temperature_2m,precipitation_probability&daily=precipitation_probability_max&timezone=auto`);
     if (!response.ok) throw new Error(`Weather HTTP ${response.status}`);
     const data = await response.json();
 
     const weatherInfo = {
       current: data.current_weather,
+      hourly: data.hourly,
       daily: data.daily,
       summary: `${data.current_weather.temperature}°C, ${data.current_weather.weathercode}`,
     };
@@ -514,7 +666,7 @@ async function fetchWeather() {
     localStorage.setItem('weather_last_update', weatherFetchTimestamp.toISOString());
     updateWeatherUI(weatherInfo);
     checkRainDelay(weatherInfo);
-    showStatus('Weather data updated.', 'success');
+    showStatus('Weather data updated (with hourly forecast).', 'success');
   } catch (error) {
     console.error('Weather fetch failed:', error);
     showStatus(`Weather fetch failed: ${error.message}`, 'error');
@@ -531,7 +683,13 @@ function updateWeatherUI(weatherInfo) {
   if (weatherInfo && weatherInfo.current) {
     const temp = weatherInfo.current.temperature;
     const rainProb = weatherInfo.daily ? weatherInfo.daily.precipitation_probability_max[0] : 0;
-    weatherStatus.textContent = `${temp}°C, Rain ${rainProb}%`;
+    weatherStatus.textContent = `${temp}°C, Rain ${rainProb}% | `;
+    
+    // Add hourly forecast snippet
+    if (weatherInfo.hourly && weatherInfo.hourly.precipitation_probability) {
+      const nextHours = weatherInfo.hourly.precipitation_probability.slice(0, 4).join('%, ') + '%';
+      weatherStatus.textContent += `Next 4h rain: ${nextHours}`;
+    }
 
     if (rainProb > 70) weatherIcon.className = 'fas fa-cloud-showers-heavy';
     else if (rainProb > 30) weatherIcon.className = 'fas fa-cloud-rain';
@@ -658,6 +816,34 @@ async function fetchData() {
     return;
   }
 
+  // Debounce: Prevent rapid successive fetches
+  const now = Date.now();
+  if (now - lastFetchTime < MIN_FETCH_INTERVAL) {
+    showStatus("Please wait before fetching again.", "info");
+    return;
+  }
+  lastFetchTime = now;
+
+  // Check cache first
+  if (cachedResponse && now - cacheTimestamp < CACHE_DURATION) {
+    const data = cachedResponse;
+    lastData = data;
+    updateConnectionStatus(true);
+    updateSoilMoisture(data.soil_moisture || data.soil || 0);
+    updateWaterFlow(data.water_flow || data.flow || 0);
+    updateValveStatus(data.valve_status || data.valve || "UNKNOWN");
+    updateBattery(data.battery_voltage || data.battery || 0, data.battery_percentage || data.battery_percent || 0);
+    updateSolarVoltage(data.solar_voltage || data.solar || 0);
+    updateMode(data.auto_mode || false);
+    const systemHealth = assessSystemHealth(data);
+    updateSystemStatus(systemHealth);
+    lastUpdateTime = new Date();
+    updateLastUpdate();
+    checkAlerts(data);
+    showStatus("(Cached) Data loaded successfully!", "success");
+    return;
+  }
+
   const refreshBtn = document.getElementById("refreshBtn");
   const refreshIcon = refreshBtn.querySelector("i");
   const refreshText = refreshBtn.querySelector("span");
@@ -684,6 +870,12 @@ async function fetchData() {
 
     const data = await response.json();
 
+    // Cache the response
+    cachedResponse = data;
+    cacheTimestamp = Date.now();
+
+    lastData = data;
+
     // Update connection status
     updateConnectionStatus(true);
 
@@ -706,6 +898,7 @@ async function fetchData() {
     await saveLastSensorData(data);
     addTrendEntry(data);
     updateNextIrrigationAndAdvice();
+    checkAlerts(data);
 
     // Reset failure state when success
     failedFetchCount = 0;
@@ -926,6 +1119,17 @@ async function sendCommand(cmd) {
   if (!ip) {
     showStatus("Please set the ESP32 IP address first.", "error");
     return;
+  }
+
+  logEvent(`Valve ${cmd}`, '');
+  if (cmd === 'ON') {
+    irrigationStartTime = Date.now();
+  } else if (cmd === 'OFF' && irrigationStartTime) {
+    const durationMinutes = (Date.now() - irrigationStartTime) / 1000 / 60;
+    const flowRate = lastData ? (lastData.water_flow || 0) : 0;
+    const litersUsed = flowRate * durationMinutes;
+    logEvent('Irrigation completed', `Duration: ${durationMinutes.toFixed(1)} min, Liters used: ${litersUsed.toFixed(2)} L`);
+    irrigationStartTime = null;
   }
 
   const btnId = cmd === "ON" ? "startBtn" : "stopBtn";
@@ -1465,6 +1669,33 @@ document.addEventListener('DOMContentLoaded', function() {
   } else {
     showLoginModal();
   }
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', function(e) {
+    if (!isAuthenticated() || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    switch(e.key.toLowerCase()) {
+      case 'r':
+        fetchData();
+        e.preventDefault();
+        break;
+      case 's':
+        sendCommand('ON');
+        e.preventDefault();
+        break;
+      case 't':
+        sendCommand('OFF');
+        e.preventDefault();
+        break;
+      case 'l':
+        lockSession();
+        e.preventDefault();
+        break;
+      case '?':
+        showHelp();
+        e.preventDefault();
+        break;
+    }
+  });
 });
 
 // Update last update time every minute
