@@ -116,16 +116,30 @@ function attemptLogin() {
     if (remaining > 0) {
       updateLoginError(`Incorrect password. ${remaining} attempt(s) remaining.`);
     } else {
-      updateLoginError('Too many failed attempts. Try again in 30 seconds.');
       document.getElementById('loginSubmit').disabled = true;
       document.getElementById('loginPassword').disabled = true;
+
+      let secondsRemaining = 30;
+      updateLoginError(`Too many failed attempts. Try again in ${secondsRemaining}s.`);
+
+      const countdownInterval = setInterval(() => {
+        secondsRemaining--;
+        if (secondsRemaining > 0) {
+          updateLoginError(`Too many failed attempts. Try again in ${secondsRemaining}s.`);
+        } else {
+          clearInterval(countdownInterval);
+          passwordAttempts = 0;
+          document.getElementById('loginSubmit').disabled = false;
+          document.getElementById('loginPassword').disabled = false;
+          document.getElementById('loginPassword').value = '';
+          updateLoginError('You may try again.');
+          cooldownTimeoutId = null;
+        }
+      }, 1000);
+
       cooldownTimeoutId = setTimeout(() => {
-        passwordAttempts = 0;
-        document.getElementById('loginSubmit').disabled = false;
-        document.getElementById('loginPassword').disabled = false;
-        updateLoginError('You may try again.');
-        cooldownTimeoutId = null;
-      }, cooldownMs);
+        clearInterval(countdownInterval);
+      }, 30500);
     }
   }
 }
