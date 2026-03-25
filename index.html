@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Smart Irrigation System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header>
+  <div class="header-content">
+    <i class="fas fa-seedling header-icon"></i>
+    <h1>Smart Irrigation Dashboard</h1>
+    <div class="header-controls">
+      <button id="themeToggle" onclick="toggleTheme()" class="theme-btn">
+        <i class="fas fa-moon"></i>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- System Status Overview -->
+  <div class="status-overview">
+    <div class="status-card connection-status">
+      <div class="status-icon">
+        <i class="fas fa-wifi" id="connectionIcon"></i>
+      </div>
+      <div class="status-info">
+        <h4>Connection Status</h4>
+        <span id="connectionStatus">Not Connected</span>
+      </div>
+    </div>
+    <div class="status-card system-status">
+      <div class="status-icon">
+        <i class="fas fa-heartbeat" id="systemIcon"></i>
+      </div>
+      <div class="status-info">
+        <h4>System Health</h4>
+        <span id="systemStatus">Unknown</span>
+      </div>
+    </div>
+    <div class="status-card last-update">
+      <div class="status-icon">
+        <i class="fas fa-clock"></i>
+      </div>
+      <div class="status-info">
+        <h4>Last Update</h4>
+        <span id="lastUpdate">Never</span>
+      </div>
+    </div>
+    <div class="status-card weather-status">
+      <div class="status-icon">
+        <i class="fas fa-cloud-sun" id="weatherIcon"></i>
+      </div>
+      <div class="status-info">
+        <h4>Weather</h4>
+        <span id="weatherStatus">Not fetched</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="status" class="status-message"></div>
+
+  <div class="config-section">
+    <div class="config-card">
+      <h3><i class="fas fa-network-wired"></i> ESP32 Configuration</h3>
+      <div class="ip-input-group">
+        <input type="text" id="ip" placeholder="192.168.1.100" pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$">
+        <button onclick="saveIP()" class="save-btn">
+          <i class="fas fa-save"></i> Save IP
+        </button>
+      </div>
+      <div class="ip-input-group">
+        <input type="number" id="latitude" placeholder="Latitude" step="0.0001" min="-90" max="90" style="flex: 1;">
+        <input type="number" id="longitude" placeholder="Longitude" step="0.0001" min="-180" max="180" style="flex: 1;">
+        <button onclick="saveLocation()" class="save-btn">
+          <i class="fas fa-save"></i> Save Location
+        </button>
+      </div>
+      <div class="ip-input-group">
+        <button onclick="autoDetectLocation()" class="refresh-btn" style="width:100%;">
+          <i class="fas fa-map-marker-alt"></i> Auto-detect Location
+        </button>
+      </div>
+      <div class="ip-input-group">
+        <input type="number" id="rainThreshold" placeholder="Rain delay threshold %" min="0" max="100" style="flex: 1;" value="50">
+        <button onclick="fetchWeather()" class="refresh-btn" id="refreshWeatherBtn">
+          <i class="fas fa-cloud-sun"></i> <span>Fetch Weather</span>
+        </button>
+      </div>
+      <div class="ip-input-group" style="justify-content: space-between; align-items: center;">
+        <span>Location source: <strong id="locationSource" class="status-chip">Manual</strong></span>
+        <span id="locationSourceLastUpdated" class="status-caption">(updated: never)</span>
+        <label style="font-size:0.9rem;display:flex;align-items:center;gap:0.4rem;">
+          <input type="checkbox" id="forceIpMode" onchange="toggleForceIPMode()"> Force IP mode
+        </label>
+      </div>
+      <button onclick="fetchData()" class="refresh-btn" id="refreshBtn">
+        <i class="fas fa-sync-alt"></i> <span>Refresh Data</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="dashboard-grid">
+
+    <!-- Environmental Sensors -->
+    <div class="metric-card soil-card" title="Current soil moisture level - indicates when irrigation is needed">
+      <div class="card-header">
+        <i class="fas fa-water"></i>
+        <h3>Soil Moisture</h3>
+      </div>
+      <div class="metric-value" id="soil">--</div>
+      <div class="metric-unit">%</div>
+      <div class="metric-indicator">
+        <div class="indicator-bar" id="soilIndicator"></div>
+      </div>
+    </div>
+
+    <div class="metric-card flow-card" title="Current water flow rate through the irrigation system">
+      <div class="card-header">
+        <i class="fas fa-tint"></i>
+        <h3>Water Flow</h3>
+      </div>
+      <div class="metric-value" id="flow">--</div>
+      <div class="metric-unit">L/min</div>
+    </div>
+
+    <!-- System Status -->
+    <div class="metric-card valve-card" title="Current state of the irrigation valve">
+      <div class="card-header">
+        <i class="fas fa-faucet"></i>
+        <h3>Valve Status</h3>
+      </div>
+      <div class="valve-status" id="valve">
+        <i class="fas fa-circle"></i>
+        <span>--</span>
+      </div>
+      <div class="status-description" id="valveDescription">System idle</div>
+    </div>
+
+    <div class="metric-card mode-card" title="Current operation mode - Manual or Automatic">
+      <div class="card-header">
+        <i class="fas fa-cogs"></i>
+        <h3>Operation Mode</h3>
+      </div>
+      <div class="mode-status" id="mode">
+        <i class="fas fa-circle"></i>
+        <span>--</span>
+      </div>
+      <div class="status-description" id="modeDescription">Check system settings</div>
+    </div>
+
+    <!-- Power Systems -->
+    <div class="metric-card battery-card" title="Battery voltage and charge level">
+      <div class="card-header">
+        <i class="fas fa-battery-half"></i>
+        <h3>Battery Status</h3>
+      </div>
+      <div class="battery-info">
+        <div class="metric-value" id="battery-voltage">--</div>
+        <div class="metric-unit">V</div>
+        <div class="battery-percentage" id="battery-percentage">--</div>
+      </div>
+      <div class="battery-bar">
+        <div class="battery-fill" id="battery-fill"></div>
+      </div>
+      <div class="battery-level-text" id="batteryLevelText">Unknown</div>
+    </div>
+
+    <div class="metric-card solar-card" title="Solar panel voltage output">
+      <div class="card-header">
+        <i class="fas fa-sun"></i>
+        <h3>Solar Panel</h3>
+      </div>
+      <div class="metric-value" id="solar">--</div>
+      <div class="metric-unit">V</div>
+      <div class="solar-efficiency" id="solarEfficiency">Efficiency: --</div>
+    </div>
+
+  </div>
+
+  <div class="controls-section">
+    <div class="control-card">
+      <h3><i class="fas fa-play-circle"></i> Quick Controls</h3>
+      <div class="quick-actions">
+        <div class="control-buttons">
+          <button onclick="sendCommand('ON')" class="control-btn start-btn" id="startBtn" title="Start irrigation immediately">
+            <i class="fas fa-play"></i> Start
+          </button>
+          <button onclick="sendCommand('OFF')" class="control-btn stop-btn" id="stopBtn" title="Stop irrigation immediately">
+            <i class="fas fa-stop"></i> Stop
+          </button>
+        </div>
+        <div class="control-info">
+          <div class="info-item">
+            <i class="fas fa-info-circle"></i>
+            <span>Manual override controls</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="control-card">
+      <h3><i class="fas fa-robot"></i> Automation Settings</h3>
+      <div class="automation-controls">
+        <div class="auto-toggle">
+          <label class="toggle-label">
+            <input type="checkbox" id="autoToggle" onchange="toggleAuto()">
+            <span class="toggle-slider"></span>
+            <span class="toggle-text">Smart Auto Mode</span>
+          </label>
+          <div class="toggle-description">
+            <i class="fas fa-lightbulb"></i>
+            <span>Automatically irrigate based on soil moisture</span>
+          </div>
+        </div>
+        <div class="schedule-summary" id="scheduleSummary">
+          <div class="summary-item">
+            <i class="fas fa-calendar-check"></i>
+            <span id="activeSchedules">0 active schedules</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="schedule-section">
+    <div class="schedule-card">
+      <div class="schedule-header">
+        <h3><i class="fas fa-clock"></i> Irrigation Scheduling</h3>
+        <div class="schedule-stats">
+          <span class="stat-item" id="totalSchedules">0 total</span>
+          <span class="stat-item active" id="enabledSchedules">0 active</span>
+        </div>
+      </div>
+
+      <div class="schedule-note">
+        <i class="fas fa-info-circle"></i>
+        <div class="note-content">
+          <strong>Automated Irrigation:</strong> Set up recurring schedules for hands-free watering.
+          Requires ESP32 firmware with scheduling support.
+        </div>
+      </div>
+
+      <div class="schedule-form" id="scheduleForm">
+        <h4><i class="fas fa-plus-circle"></i> Create New Schedule</h4>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="scheduleTime">Start Time</label>
+            <input type="time" id="scheduleTime" required title="Select when irrigation should begin">
+          </div>
+          <div class="form-group">
+            <label for="scheduleDuration">Duration (minutes)</label>
+            <input type="number" id="scheduleDuration" min="1" max="480" placeholder="30" required title="How long should irrigation run (1-480 minutes)">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Repeat On</label>
+          <div class="days-selector">
+            <label class="day-checkbox" title="Sunday">
+              <input type="checkbox" value="0" id="sun"> Sun
+            </label>
+            <label class="day-checkbox" title="Monday">
+              <input type="checkbox" value="1" id="mon"> Mon
+            </label>
+            <label class="day-checkbox" title="Tuesday">
+              <input type="checkbox" value="2" id="tue"> Tue
+            </label>
+            <label class="day-checkbox" title="Wednesday">
+              <input type="checkbox" value="3" id="wed"> Wed
+            </label>
+            <label class="day-checkbox" title="Thursday">
+              <input type="checkbox" value="4" id="thu"> Thu
+            </label>
+            <label class="day-checkbox" title="Friday">
+              <input type="checkbox" value="5" id="fri"> Fri
+            </label>
+            <label class="day-checkbox" title="Saturday">
+              <input type="checkbox" value="6" id="sat"> Sat
+            </label>
+          </div>
+        </div>
+
+        <button type="button" onclick="addSchedule()" class="add-schedule-btn">
+          <i class="fas fa-plus"></i> Add Schedule
+        </button>
+      </div>
+
+      <div class="schedule-list" id="scheduleList">
+        <h4><i class="fas fa-list"></i> Active Schedules</h4>
+        <div class="schedule-item template" id="scheduleTemplate">
+          <div class="schedule-info">
+            <div class="schedule-time">
+              <i class="fas fa-clock"></i>
+              <span class="time-display">--:--</span>
+            </div>
+            <div class="schedule-duration">
+              <i class="fas fa-hourglass-half"></i>
+              <span class="duration-display">-- min</span>
+            </div>
+            <div class="schedule-days">
+              <i class="fas fa-calendar-week"></i>
+              <span class="days-display">--</span>
+            </div>
+          </div>
+          <div class="schedule-controls">
+            <label class="schedule-toggle" title="Enable/disable this schedule">
+              <input type="checkbox" class="schedule-enabled">
+              <span class="toggle-slider small"></span>
+            </label>
+            <button class="delete-schedule-btn" onclick="deleteSchedule(this)" title="Delete this schedule">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>
+        <div class="no-schedules" id="noSchedules">
+          <i class="fas fa-calendar-plus"></i>
+          <p>No schedules created yet. Add your first schedule above.</p>
+        </div>
+      </div>
+
+      <div class="schedule-actions">
+        <button onclick="saveSchedulesToESP32()" class="save-schedules-btn" id="saveSchedulesBtn">
+          <i class="fas fa-save"></i> <span>Save to ESP32</span>
+        </button>
+        <button onclick="clearAllSchedules()" class="clear-schedules-btn">
+          <i class="fas fa-trash-alt"></i> Clear All
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-section">
+    <div class="chart-card">
+      <h3><i class="fas fa-chart-line"></i> Historical Trends</h3>
+      <div class="chart-controls">
+        <label for="trendMetricSelect">Metric:</label>
+        <select id="trendMetricSelect" onchange="setTrendMetric(this.value)">
+          <option value="soil">Soil Moisture (%)</option>
+          <option value="water_flow">Water Flow (L/min)</option>
+          <option value="battery_voltage">Battery Voltage (V)</option>
+          <option value="solar_voltage">Solar Voltage (V)</option>
+        </select>
+        <button onclick="downloadHistory()" class="refresh-btn" title="Download history as JSON">
+          <i class="fas fa-file-download"></i> Export Data
+        </button>
+      </div>
+      <canvas id="trendChart" width="100" height="45"></canvas>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <p>&copy; 2026 Smart Irrigation System | Connected to ESP32</p>
+</footer>
+
+<script src="script.js"></script>
+
+</body>
+</html>
