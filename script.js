@@ -48,7 +48,54 @@ function updateLoginError(message) {
   }
 }
 
+let idleTimeoutMs = 5 * 60 * 1000; // 5 minutes
+let idleTimerId = null;
+let cooldownTimeoutId = null;
+const cooldownMs = 30 * 1000; // 30 seconds
+
+function resetIdleTimer() {
+  if (idleTimerId) clearTimeout(idleTimerId);
+  idleTimerId = setTimeout(() => {
+    lockSession('Session locked due to inactivity. Please login again.');
+  }, idleTimeoutMs);
+}
+
+function setupIdleListeners() {
+  ['click', 'mousemove', 'keydown', 'touchstart'].forEach(eventName => {
+    window.addEventListener(eventName, resetIdleTimer);
+  });
+  resetIdleTimer();
+}
+
+function clearIdleTimer() {
+  if (idleTimerId) clearTimeout(idleTimerId);
+  idleTimerId = null;
+}
+
+function lockSession(message) {
+  localStorage.removeItem('access_hash');
+  hideAppContent();
+  showLoginModal();
+  updateLoginError(message);
+  clearIdleTimer();
+}
+
+function hideAppContent() {
+  document.querySelector('main').style.display = 'none';
+  document.querySelector('footer').style.display = 'none';
+}
+
+function showAppContent() {
+  document.querySelector('main').style.display = '';
+  document.querySelector('footer').style.display = '';
+}
+
 function attemptLogin() {
+  if (cooldownTimeoutId) {
+    updateLoginError('Cooldown active. Please wait for timer to finish.');
+    return;
+  }
+
   const input = document.getElementById('loginPassword').value;
   if (!input) {
     updateLoginError('Password is required.');
@@ -60,16 +107,25 @@ function attemptLogin() {
     passwordAttempts = 0;
     updateLoginError('');
     hideLoginModal();
+    showAppContent();
     initializeApp();
+    setupIdleListeners();
   } else {
     passwordAttempts++;
     const remaining = maxPasswordAttempts - passwordAttempts;
     if (remaining > 0) {
       updateLoginError(`Incorrect password. ${remaining} attempt(s) remaining.`);
     } else {
-      updateLoginError('Too many failed attempts. Refresh to try again.');
+      updateLoginError('Too many failed attempts. Try again in 30 seconds.');
       document.getElementById('loginSubmit').disabled = true;
       document.getElementById('loginPassword').disabled = true;
+      cooldownTimeoutId = setTimeout(() => {
+        passwordAttempts = 0;
+        document.getElementById('loginSubmit').disabled = false;
+        document.getElementById('loginPassword').disabled = false;
+        updateLoginError('You may try again.');
+        cooldownTimeoutId = null;
+      }, cooldownMs);
     }
   }
 }
