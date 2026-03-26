@@ -50,11 +50,29 @@ let performanceMetrics = {
 // Simple password protection
 // bcrypt hash for password123
 const PASSWORD_HASH = "$2a$10$P3hVNgKI3O2.jiaT/HuazOeKM63hYfQA4c0uA6HvK6SDElXANKM56";
+const SESSION_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 let passwordAttempts = 0;
 const maxPasswordAttempts = 3;
 
 function isAuthenticated() {
-  return localStorage.getItem("access_hash") === PASSWORD_HASH;
+  const hash = localStorage.getItem("access_hash");
+  const sessionTime = localStorage.getItem("session_timestamp");
+  
+  if (hash !== PASSWORD_HASH) return false;
+  
+  // Check session expiry
+  if (sessionTime) {
+    const now = Date.now();
+    const sessionAge = now - parseInt(sessionTime);
+    if (sessionAge > SESSION_EXPIRY_MS) {
+      // Session expired, clear it
+      localStorage.removeItem("access_hash");
+      localStorage.removeItem("session_timestamp");
+      return false;
+    }
+  }
+  
+  return true;
 }
 
 function showLoginModal() {
@@ -509,6 +527,7 @@ function clearIdleTimer() {
 
 function lockSession(message) {
   localStorage.removeItem('access_hash');
+  localStorage.removeItem('session_timestamp');
   hideAppContent();
   showLoginModal();
   updateLoginError(message);
@@ -550,6 +569,7 @@ function attemptLogin() {
 
   if (loggedIn) {
     localStorage.setItem('access_hash', PASSWORD_HASH);
+    localStorage.setItem('session_timestamp', Date.now().toString());
     passwordAttempts = 0;
     updateLoginError('');
     hideLoginModal();
