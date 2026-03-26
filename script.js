@@ -1984,7 +1984,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Keyboard shortcuts
   document.addEventListener('keydown', function(e) {
-    if (!isAuthenticated() || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    console.log('Keydown event:', e.key, 'Authenticated:', isAuthenticated(), 'Target:', e.target.tagName);
+    if (!isAuthenticated() || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+      console.log('Keyboard shortcut blocked: not authenticated or in input field');
+      return;
+    }
     switch(e.key.toLowerCase()) {
       case 'r':
         console.log('Keyboard shortcut: Refresh data');
@@ -2011,6 +2015,8 @@ document.addEventListener('DOMContentLoaded', function() {
         showHelp();
         e.preventDefault();
         break;
+      default:
+        console.log('No shortcut for key:', e.key);
     }
   });
 });
