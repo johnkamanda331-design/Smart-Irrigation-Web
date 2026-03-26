@@ -7,32 +7,10 @@ let rainThreshold = parseInt(localStorage.getItem("rain_threshold")) || 50;
 let forceIPMode = localStorage.getItem("force_ip_mode") === "true";
 let weatherFetchTimestamp = localStorage.getItem("weather_last_update") ? new Date(localStorage.getItem("weather_last_update")) : null;
 let autoRefreshEnabled = localStorage.getItem("auto_refresh_enabled") !== "false";
-
-let schedules = [];
-let scheduleIdCounter = 1;
-
-try {
-  const savedSchedules = localStorage.getItem('irrigation_schedules');
-  if (savedSchedules) {
-    schedules = JSON.parse(savedSchedules) || [];
-  }
-} catch (e) {
-  console.warn('Could not parse stored schedules', e);
-  schedules = [];
-}
-
-try {
-  const storedCounter = parseInt(localStorage.getItem('schedule_id_counter'));
-  if (!isNaN(storedCounter)) {
-    scheduleIdCounter = storedCounter;
-  } else if (schedules.length > 0) {
-    scheduleIdCounter = Math.max(...schedules.map(s => s.id)) + 1;
-  }
-} catch (e) {
-  console.warn('Could not parse scheduleIdCounter', e);
-  scheduleIdCounter = schedules.length > 0 ? Math.max(...schedules.map(s => s.id)) + 1 : 1;
-}
 let autoRefreshIntervalMs = parseInt(localStorage.getItem("auto_refresh_interval_ms")) || 30000;
+
+let schedules = JSON.parse(localStorage.getItem('irrigation_schedules') || '[]');
+let scheduleIdCounter = parseInt(localStorage.getItem('schedule_id_counter') || '1') || 1;
 let failedFetchCount = 0;
 let trendMetric = "soil";
 let trendChart = null;
@@ -534,19 +512,13 @@ const cooldownMs = 30 * 1000; // 30 seconds
 function resetIdleTimer() {
   if (idleTimerId) clearTimeout(idleTimerId);
   idleTimerId = setTimeout(() => {
-    console.log('Idle timeout reached, locking session');
     lockSession('Session locked due to inactivity. Please login again.');
   }, idleTimeoutMs);
-  console.log('Idle timer reset, will lock in', idleTimeoutMs / 1000, 'seconds');
 }
 
 function setupIdleListeners() {
-  console.log('Setting up idle listeners');
   ['click', 'mousemove', 'keydown', 'touchstart'].forEach(eventName => {
-    window.addEventListener(eventName, () => {
-      console.log('Activity detected:', eventName);
-      resetIdleTimer();
-    });
+    window.addEventListener(eventName, resetIdleTimer);
   });
   resetIdleTimer();
 }
@@ -557,7 +529,6 @@ function clearIdleTimer() {
 }
 
 function lockSession(message) {
-  console.log('Locking session with message:', message);
   localStorage.removeItem('access_hash');
   localStorage.removeItem('session_timestamp');
   hideAppContent();
@@ -677,9 +648,10 @@ function setLocationSource(source) {
 }
 
 function setLocationSourceDirectly(source) {
-  setLocationSource(source);
-  if (source === 'GPS' || source === 'IP') {
-    setLocationSource(lastUpdateTime ? 'GPS' : 'IP');
+  if (['GPS', 'IP', 'Manual', 'Unknown'].includes(source)) {
+    setLocationSource(source);
+  } else {
+    setLocationSource('Unknown');
   }
 }
 
@@ -793,7 +765,7 @@ function addTrendEntry(data) {
 
 function downloadHistory() {
   const csv = Papa.unparse(historicalData.map(entry => ({
-    timestamp: entry.timestamp,
+    timestamp: entry.ts || entry.timestamp || '',
     soil_moisture: entry.soil_moisture || entry.soil,
     water_flow: entry.water_flow || entry.flow,
     battery_voltage: entry.battery_voltage || entry.battery,
@@ -1193,12 +1165,12 @@ async function fetchData() {
   }
 
   const refreshBtn = document.getElementById("refreshBtn");
-  const refreshIcon = refreshBtn.querySelector("i");
-  const refreshText = refreshBtn.querySelector("span");
+  const refreshIcon = refreshBtn ? refreshBtn.querySelector("i") : null;
+  const refreshText = refreshBtn ? refreshBtn.querySelector("span") : null;
 
   // Show loading state
-  refreshBtn.classList.add("spinning");
-  refreshText.textContent = "Refreshing...";
+  if (refreshBtn) refreshBtn.classList.add("spinning");
+  if (refreshText) refreshText.textContent = "Refreshing...";
 
   try {
     showStatus("Fetching data from ESP32...", "info");
@@ -1499,10 +1471,12 @@ async function sendCommand(cmd) {
   const button = document.getElementById(btnId);
 
   // Disable button and show loading
-  button.disabled = true;
-  button.classList.add("loading");
-  const originalText = button.innerHTML;
-  button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+  if (button) {
+    button.disabled = true;
+    button.classList.add("loading");
+  }
+  const originalText = button ? button.innerHTML : '';
+  if (button) button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
 
   try {
     showStatus(`Sending ${cmd} command...`, "info");
