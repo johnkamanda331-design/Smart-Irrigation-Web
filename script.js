@@ -1987,22 +1987,27 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!isAuthenticated() || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     switch(e.key.toLowerCase()) {
       case 'r':
+        console.log('Keyboard shortcut: Refresh data');
         fetchData();
         e.preventDefault();
         break;
       case 's':
+        console.log('Keyboard shortcut: Send ON command');
         sendCommand('ON');
         e.preventDefault();
         break;
       case 't':
+        console.log('Keyboard shortcut: Send OFF command');
         sendCommand('OFF');
         e.preventDefault();
         break;
       case 'l':
+        console.log('Keyboard shortcut: Lock session');
         lockSession();
         e.preventDefault();
         break;
       case '?':
+        console.log('Keyboard shortcut: Show help');
         showHelp();
         e.preventDefault();
         break;
