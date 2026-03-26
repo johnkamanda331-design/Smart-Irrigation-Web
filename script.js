@@ -1981,44 +1981,6 @@ document.addEventListener('DOMContentLoaded', function() {
   } else {
     showLoginModal();
   }
-
-  // Keyboard shortcuts
-  document.addEventListener('keydown', function(e) {
-    console.log('Keydown event:', e.key, 'Authenticated:', isAuthenticated(), 'Target:', e.target.tagName);
-    if (!isAuthenticated() || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-      console.log('Keyboard shortcut blocked: not authenticated or in input field');
-      return;
-    }
-    switch(e.key.toLowerCase()) {
-      case 'r':
-        console.log('Keyboard shortcut: Refresh data');
-        fetchData();
-        e.preventDefault();
-        break;
-      case 's':
-        console.log('Keyboard shortcut: Send ON command');
-        sendCommand('ON');
-        e.preventDefault();
-        break;
-      case 't':
-        console.log('Keyboard shortcut: Send OFF command');
-        sendCommand('OFF');
-        e.preventDefault();
-        break;
-      case 'l':
-        console.log('Keyboard shortcut: Lock session');
-        lockSession();
-        e.preventDefault();
-        break;
-      case '?':
-        console.log('Keyboard shortcut: Show help');
-        showHelp();
-        e.preventDefault();
-        break;
-      default:
-        console.log('No shortcut for key:', e.key);
-    }
-  });
 });
 
 // Update last update time every minute
