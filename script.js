@@ -509,13 +509,19 @@ const cooldownMs = 30 * 1000; // 30 seconds
 function resetIdleTimer() {
   if (idleTimerId) clearTimeout(idleTimerId);
   idleTimerId = setTimeout(() => {
+    console.log('Idle timeout reached, locking session');
     lockSession('Session locked due to inactivity. Please login again.');
   }, idleTimeoutMs);
+  console.log('Idle timer reset, will lock in', idleTimeoutMs / 1000, 'seconds');
 }
 
 function setupIdleListeners() {
+  console.log('Setting up idle listeners');
   ['click', 'mousemove', 'keydown', 'touchstart'].forEach(eventName => {
-    window.addEventListener(eventName, resetIdleTimer);
+    window.addEventListener(eventName, () => {
+      console.log('Activity detected:', eventName);
+      resetIdleTimer();
+    });
   });
   resetIdleTimer();
 }
@@ -526,6 +532,7 @@ function clearIdleTimer() {
 }
 
 function lockSession(message) {
+  console.log('Locking session with message:', message);
   localStorage.removeItem('access_hash');
   localStorage.removeItem('session_timestamp');
   hideAppContent();
