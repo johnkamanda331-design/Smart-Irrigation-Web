@@ -7,6 +7,31 @@ let rainThreshold = parseInt(localStorage.getItem("rain_threshold")) || 50;
 let forceIPMode = localStorage.getItem("force_ip_mode") === "true";
 let weatherFetchTimestamp = localStorage.getItem("weather_last_update") ? new Date(localStorage.getItem("weather_last_update")) : null;
 let autoRefreshEnabled = localStorage.getItem("auto_refresh_enabled") !== "false";
+
+let schedules = [];
+let scheduleIdCounter = 1;
+
+try {
+  const savedSchedules = localStorage.getItem('irrigation_schedules');
+  if (savedSchedules) {
+    schedules = JSON.parse(savedSchedules) || [];
+  }
+} catch (e) {
+  console.warn('Could not parse stored schedules', e);
+  schedules = [];
+}
+
+try {
+  const storedCounter = parseInt(localStorage.getItem('schedule_id_counter'));
+  if (!isNaN(storedCounter)) {
+    scheduleIdCounter = storedCounter;
+  } else if (schedules.length > 0) {
+    scheduleIdCounter = Math.max(...schedules.map(s => s.id)) + 1;
+  }
+} catch (e) {
+  console.warn('Could not parse scheduleIdCounter', e);
+  scheduleIdCounter = schedules.length > 0 ? Math.max(...schedules.map(s => s.id)) + 1 : 1;
+}
 let autoRefreshIntervalMs = parseInt(localStorage.getItem("auto_refresh_interval_ms")) || 30000;
 let failedFetchCount = 0;
 let trendMetric = "soil";
